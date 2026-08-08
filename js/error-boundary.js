@@ -2,6 +2,13 @@
 // so one broken component doesn't blank out the whole page.
 
 window.CaraErrorBoundary = (function () {
+  // Internal silent logging hook — replace with error-logger.js wiring in future
+  var _logHook = function (msg, error) {
+    // Silent by default — no console output in production builds.
+    // Wire in window.CaraErrorLogger and call _logHook('error', {msg, error})
+    // to integrate with a centralized logging service.
+  };
+
   function renderFallback(container, message) {
     container.innerHTML = `
       <div class="cara-error-fallback" role="alert" style="
@@ -35,20 +42,21 @@ window.CaraErrorBoundary = (function () {
       message: error && error.message ? error.message : String(error),
       timestamp: Date.now(),
     });
+    _logHook('[CaraErrorBoundary] Error in "' + context + '":', error);
   }
 
   function wrap(selector, renderFn) {
-    const container = document.querySelector(selector);
+    var container = document.querySelector(selector);
     if (!container) return;
 
-    const attempt = () => {
+    var attempt = function () {
       try {
         renderFn();
       } catch (error) {
         logError(error, selector);
         renderFallback(container, error.message);
 
-        const retryBtn = container.querySelector('.cara-error-retry');
+        var retryBtn = container.querySelector('.cara-error-retry');
         if (retryBtn) {
           retryBtn.addEventListener('click', attempt);
         }
@@ -67,7 +75,12 @@ window.CaraErrorBoundary = (function () {
     logError(event.reason, 'unhandledPromiseRejection');
   });
 
-  return { wrap, logError };
+  return { wrap: wrap, logError: logError };
 })();
 
-function getErrorFallbackHTML(message = 'An unexpected error occurred.') { return `<div class="error-fallback-box"><p>${message}</p></div>`; }
+function getErrorFallbackHTML(message) {
+  if (message === undefined) {
+    message = 'An unexpected error occurred.';
+  }
+  return '<div class="error-fallback-box"><p>' + message + '</p></div>';
+}
